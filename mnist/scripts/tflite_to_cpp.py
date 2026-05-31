@@ -32,12 +32,12 @@ def main() -> None:
 
     with open(header_path, "w") as f:
         f.write("#pragma once\n\n")
-        f.write(f"extern unsigned char {symbol}[];\n")
-        f.write(f"extern unsigned int {symbol}_len;\n")
+        f.write(f"extern const unsigned char {symbol}[];\n")
+        f.write(f"extern const unsigned int {symbol}_len;\n")
 
     with open(source_path, "w") as f:
         f.write(f"#include \"{header_path.name}\"\n\n")
-        f.write(f"unsigned char {symbol}[] = {{\n")
+        f.write(f"const unsigned char {symbol}[] = {{\n")
 
         for i, b in enumerate(data):
             if i % 12 == 0:
@@ -47,7 +47,7 @@ def main() -> None:
                 f.write("\n")
 
         f.write("\n};\n")
-        f.write(f"unsigned int {symbol}_len = {len(data)};\n")
+        f.write(f"const unsigned int {symbol}_len = {len(data)};\n")
 
     print(f"Generated {source_path}")
     print(f"Generated {header_path}")
