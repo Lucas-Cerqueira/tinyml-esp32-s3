@@ -11,7 +11,7 @@
 #include "mobilenet_v1_025_int8.h"
 #include "mobilenet_v1_sample.h"
 
-constexpr size_t kTensorArenaSize = 400 * 1024; // 96x96 model needs ~80-100KB
+constexpr size_t kTensorArenaSize = 400 * 1024;
 
 extern "C" void app_main()
 {

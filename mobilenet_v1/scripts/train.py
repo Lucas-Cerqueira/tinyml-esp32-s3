@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from pathlib import Path
 
-IMG_SIZE = (96, 96)
+IMG_SIZE = 96
 
 BATCH_SIZE = 64
 EPOCHS = 10
@@ -19,13 +19,9 @@ print("Train:", x_train.shape)
 print("Test :", x_test.shape)
 
 def preprocess(image, label):
-
     image = tf.cast(image, tf.float32)
-
-    image = tf.image.resize(image, IMG_SIZE)
-
+    image = tf.image.resize(image, (IMG_SIZE, IMG_SIZE))
     image = tf.keras.applications.mobilenet.preprocess_input(image)
-
     return image, label
 
 train_ds = (
@@ -46,7 +42,7 @@ test_ds = (
 )
 
 base_model = tf.keras.applications.MobileNet(
-    input_shape=(96, 96, 3),
+    input_shape=(IMG_SIZE, IMG_SIZE, 3),
     alpha=0.25,
     include_top=False,
     weights="imagenet"
@@ -54,12 +50,12 @@ base_model = tf.keras.applications.MobileNet(
 
 base_model.trainable = False
 
-inputs = keras.Input(shape=(96, 96, 3))
+inputs = keras.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
 
 x = base_model(inputs, training=False)
 
 x = keras.layers.GlobalAveragePooling2D()(x)
-
+x = keras.layers.Dropout(0.25)(x)
 outputs = keras.layers.Dense(10, activation="softmax")(x)
 
 model = keras.Model(inputs, outputs)
