@@ -1,0 +1,9 @@
+[project]
+name = "tinyml-esp32-s3"
+version = "0.1.0"
+description = "TinyML on ESP32-S3: MNIST, CIFAR-10, MobileNetV1, MobileNetV2"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "tensorflow>=2.21.0",
+]
