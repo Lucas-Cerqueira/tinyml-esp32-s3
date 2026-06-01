@@ -1,6 +1,29 @@
+import argparse
 import tensorflow as tf
 from tensorflow import keras
 from pathlib import Path
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Train MobileNetV1 on CIFAR-10 with transfer learning"
+    )
+    parser.add_argument(
+        "-w", "--width-multiplier",
+        type=float,
+        choices=[0.25, 0.5, 0.75, 1.0],
+        default=0.25,
+        help="MobileNet width multiplier (alpha): 0.25, 0.5, 0.75, or 1.0"
+    )
+    return parser.parse_args()
+
+
+def alpha_tag(alpha: float) -> str:
+    return f"{int(alpha * 100):03d}"
+
+
+ARGS = parse_args()
+WIDTH_MULTIPLIER = ARGS.width_multiplier
 
 IMG_SIZE = 96
 
@@ -10,7 +33,7 @@ EPOCHS = 10
 MODEL_DIR = Path("models")
 MODEL_DIR.mkdir(exist_ok=True)
 
-MODEL_PATH = MODEL_DIR / "mobilenet_v1_025.keras"
+MODEL_PATH = MODEL_DIR / f"mobilenet_v1_{alpha_tag(WIDTH_MULTIPLIER)}.keras"
 
 (x_train, y_train), (x_test, y_test) = \
     keras.datasets.cifar10.load_data()
@@ -43,7 +66,7 @@ test_ds = (
 
 base_model = tf.keras.applications.MobileNet(
     input_shape=(IMG_SIZE, IMG_SIZE, 3),
-    alpha=0.25,
+    alpha=WIDTH_MULTIPLIER,
     include_top=False,
     weights="imagenet"
 )
@@ -99,7 +122,7 @@ loss, accuracy = model.evaluate(
 )
 
 print("\n================================")
-print(" MobileNetV1 0.25 Transfer Learning")
+print(f" MobileNetV1 {WIDTH_MULTIPLIER:g} Transfer Learning")
 print("================================")
 print(f"Test Accuracy: {accuracy:.4f}")
 print("================================")

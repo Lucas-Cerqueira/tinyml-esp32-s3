@@ -8,20 +8,48 @@
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 
-#include "mobilenet_v1_025_int8.h"
 #include "mobilenet_v1_sample.h"
 
-constexpr size_t kTensorArenaSize = 400 * 1024;
+#ifndef MOBILENET_V1_MODEL
+#define MOBILENET_V1_MODEL 025
+#endif
+
+#if MOBILENET_V1_MODEL == 025
+#include "mobilenet_v1_025_int8.h"
+#define MOBILENET_MODEL_DATA mobilenet_v1_025_int8_tflite
+#define MOBILENET_MODEL_LEN mobilenet_v1_025_int8_tflite_len
+#define MOBILENET_MODEL_LABEL "025"
+#elif MOBILENET_V1_MODEL == 050
+#include "mobilenet_v1_050_int8.h"
+#define MOBILENET_MODEL_DATA mobilenet_v1_050_int8_tflite
+#define MOBILENET_MODEL_LEN mobilenet_v1_050_int8_tflite_len
+#define MOBILENET_MODEL_LABEL "050"
+#elif MOBILENET_V1_MODEL == 075
+#include "mobilenet_v1_075_int8.h"
+#define MOBILENET_MODEL_DATA mobilenet_v1_075_int8_tflite
+#define MOBILENET_MODEL_LEN mobilenet_v1_075_int8_tflite_len
+#define MOBILENET_MODEL_LABEL "075"
+#elif MOBILENET_V1_MODEL == 100
+#include "mobilenet_v1_100_int8.h"
+#define MOBILENET_MODEL_DATA mobilenet_v1_100_int8_tflite
+#define MOBILENET_MODEL_LEN mobilenet_v1_100_int8_tflite_len
+#define MOBILENET_MODEL_LABEL "100"
+#else
+#error "Invalid MOBILENET_V1_MODEL value. Use: 025, 050, 075, or 100."
+#endif
+
+constexpr size_t kTensorArenaSize = 1200 * 1024;
 
 extern "C" void app_main()
 {
     printf("\n");
     printf("=================================\n");
-    printf(" MobileNetV1 0.25 TensorFlow Lite Micro Test\n");
+    printf(" MobileNetV1 %s TensorFlow Lite Micro Test\n",
+           MOBILENET_MODEL_LABEL);
     printf("=================================\n");
 
     printf("Model size: %u bytes\n",
-           mobilenet_v1_025_int8_tflite_len);
+           MOBILENET_MODEL_LEN);
 
     printf("PSRAM free before arena: %u bytes\n",
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
@@ -31,7 +59,7 @@ extern "C" void app_main()
 
     // Load TFLite model
     const tflite::Model *model =
-        tflite::GetModel(mobilenet_v1_025_int8_tflite);
+        tflite::GetModel(MOBILENET_MODEL_DATA);
 
     if (!model)
     {

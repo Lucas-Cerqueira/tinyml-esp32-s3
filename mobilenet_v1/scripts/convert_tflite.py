@@ -1,11 +1,17 @@
 import argparse
 import numpy as np
 import tensorflow as tf
+from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert Keras MobileNet V1 0.25 model to TFLite with selected quantization"
+        description="Convert Keras MobileNet V1 model to TFLite with selected quantization"
+    )
+    parser.add_argument(
+        "-m", "--model",
+        default="models/mobilenet_v1_025.keras",
+        help="Path to input Keras model (.keras)",
     )
     parser.add_argument(
         "-q", "--quantization",
@@ -39,10 +45,11 @@ def representative_dataset():
 
 def main() -> None:
     args = parse_args()
-    model = tf.keras.models.load_model("models/mobilenet_v1_025.keras")
+    model_path = Path(args.model)
+    model = tf.keras.models.load_model(model_path)
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
 
-    output_path = "models/mobilenet_v1_025_float.tflite"
+    output_path = model_path.with_name(f"{model_path.stem}_float.tflite")
 
     if args.quantization == "int8":
         converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -52,7 +59,7 @@ def main() -> None:
         ]
         converter.inference_input_type = tf.int8
         converter.inference_output_type = tf.int8
-        output_path = "models/mobilenet_v1_025_int8.tflite"
+        output_path = model_path.with_name(f"{model_path.stem}_int8.tflite")
 
     tflite_model = converter.convert()
 

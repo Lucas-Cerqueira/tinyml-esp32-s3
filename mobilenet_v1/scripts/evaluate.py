@@ -1,112 +1,105 @@
+from pathlib import Path
+
 import numpy as np
 import tensorflow as tf
 
-    
+
 def preprocess_image(img):
     img = tf.image.resize(img, (96, 96))
     img = tf.keras.applications.mobilenet.preprocess_input(img)
     return img.numpy()
 
 
-def evaluate_model(model_path):
-    print(f"\nEvaluating: {model_path}")
-
-    interpreter = tf.lite.Interpreter(model_path=model_path)
+def build_model_context(model_path: Path):
+    interpreter = tf.lite.Interpreter(model_path=str(model_path))
     interpreter.allocate_tensors()
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-
     input_dtype = input_details[0]["dtype"]
     output_dtype = output_details[0]["dtype"]
+    input_scale, input_zero_point = input_details[0]["quantization"]
 
+    print(f"\nEvaluating: {model_path}")
     print(f"Input dtype : {input_dtype}")
     print(f"Output dtype: {output_dtype}")
-
-    input_scale, input_zero_point = \
-        input_details[0]["quantization"]
-
     print(
         f"Input quantization: "
         f"scale={input_scale}, "
         f"zero_point={input_zero_point}"
     )
 
-    # --------------------------------------------------
-    # Load CIFAR-10
-    # --------------------------------------------------
+    return {
+        "path": model_path,
+        "interpreter": interpreter,
+        "input_index": input_details[0]["index"],
+        "output_index": output_details[0]["index"],
+        "input_dtype": input_dtype,
+        "input_scale": input_scale,
+        "input_zero_point": input_zero_point,
+        "correct": 0,
+    }
 
+
+def prepare_input_sample(img, context):
+    sample = np.expand_dims(img, axis=0)
+
+    if context["input_dtype"] == np.int8:
+        scale = context["input_scale"]
+        zero_point = context["input_zero_point"]
+
+        sample = (sample / scale) + zero_point
+        sample = np.round(sample)
+        sample = np.clip(sample, -128, 127).astype(np.int8)
+        return sample
+
+    return sample.astype(np.float32)
+
+
+def evaluate_models(model_paths):
     (_, _), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-
     y_test = y_test.flatten()
-    correct = 0
 
-    for i in range(len(x_test)):
+    contexts = [build_model_context(model_path) for model_path in model_paths]
 
+    total = len(x_test)
+    for i in range(total):
         img = preprocess_image(x_test[i])
+        target = int(y_test[i])
 
-        sample = np.expand_dims(img, axis=0)
+        for context in contexts:
+            sample = prepare_input_sample(img, context)
 
-        if input_dtype == np.int8:
+            context["interpreter"].set_tensor(context["input_index"], sample)
+            context["interpreter"].invoke()
 
-            sample = (
-                sample / input_scale
-                + input_zero_point
-            )
+            output = context["interpreter"].get_tensor(context["output_index"])
+            prediction = int(np.argmax(output))
 
-            sample = np.round(sample)
-
-            sample = np.clip(
-                sample,
-                -128,
-                127
-            ).astype(np.int8)
-
-        else:
-            sample = sample.astype(np.float32)
-
-        interpreter.set_tensor(
-            input_details[0]["index"],
-            sample
-        )
-
-        interpreter.invoke()
-
-        output = interpreter.get_tensor(
-            output_details[0]["index"]
-        )
-
-        prediction = np.argmax(output)
-
-        if prediction == int(y_test[i]):
-            correct += 1
+            if prediction == target:
+                context["correct"] += 1
 
         if (i + 1) % 1000 == 0:
-            print(
-                f"Processed {i + 1}/{len(x_test)}"
-            )
+            print(f"Processed {i + 1}/{total}")
 
-    accuracy = correct / len(x_test)
+    results = {}
+    for context in contexts:
+        accuracy = context["correct"] / total
+        results[str(context["path"])] = accuracy
+        print(f"Accuracy ({context['path'].name}): {accuracy:.4f}")
 
-    print(f"Accuracy: {accuracy:.4f}")
-
-    return accuracy
+    return results
 
 
 if __name__ == "__main__":
+    models_dir = Path("models")
+    model_paths = sorted(models_dir.glob("*.tflite"))
 
-    float_acc = evaluate_model(
-        "models/mobilenet_v1_025_float.tflite"
-    )
+    if not model_paths:
+        raise FileNotFoundError("No .tflite models found in models/")
 
-    int8_acc = evaluate_model(
-        "models/mobilenet_v1_025_int8.tflite"
-    )
+    results = evaluate_models(model_paths)
 
     print("\n========== SUMMARY ==========")
-    print(f"Float TFLite Accuracy : {float_acc:.4f}")
-    print(f"INT8 TFLite Accuracy  : {int8_acc:.4f}")
-    print(
-        f"Accuracy Loss         : "
-        f"{(float_acc - int8_acc):.4f}"
-    )
+    for model_path, accuracy in results.items():
+        print(f"{Path(model_path).name}: {accuracy:.4f}")
