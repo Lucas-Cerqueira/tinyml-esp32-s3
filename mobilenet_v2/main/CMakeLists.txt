@@ -1,0 +1,12 @@
+idf_component_register(
+    SRCS 
+        "mobilenet_v2.cpp"
+        "models/mobilenet_v2_035_float.cc"                   
+    PRIV_REQUIRES 
+        spi_flash
+        esp_psram
+        esp_timer
+    INCLUDE_DIRS 
+        "."
+        "models"
+)
